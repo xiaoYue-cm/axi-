@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <div class="posts">
+        {% for post in posts %}
+            <article class="post">
+                <h2>{{ post.title }}</h2>
+                <div class="post-meta">
+                    发布于: {{ post.date_posted.strftime('%Y-%m-%d') }}
+                </div>
+                <div class="post-content">
+                    {{ post.content }}
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+{% endblock %} 

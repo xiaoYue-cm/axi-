@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="config-form">
+    <h1>SMTP 配置</h1>
+    <form method="POST">
+        <div class="form-group">
+            <label>
+                <span class="label-text">发信昵称</span>
+                <span class="required">*</span>
+            </label>
+            <input type="text" id="sender_name" name="sender_name" 
+                   value="{{ config.sender_name if config }}" 
+                   maxlength="12" required>
+            <div class="field-hint">用户收到邮件时会显示的发件人昵称(12字符以内)</div>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <span class="label-text">SMTP 用户名</span>
+                <span class="required">*</span>
+            </label>
+            <input type="email" id="smtp_user" name="smtp_user" 
+                   value="{{ config.smtp_user if config }}"
+                   maxlength="30" required
+                   placeholder="请输入SMTP用户名">
+            <div class="field-hint">你的SMTP用户名,请确保是一个正确的邮箱地址(30字符以内)</div>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <span class="label-text">SMTP 授权码</span>
+                <span class="required">*</span>
+            </label>
+            <input type="password" id="smtp_password" name="smtp_password" 
+                   value="{{ config.smtp_password if config }}"
+                   minlength="16" maxlength="20" required
+                   placeholder="请输入SMTP授权码">
+            <div class="field-hint">邮箱地址对应的SMTP授权码(长度为16-20的大小写字母和数字)</div>
+        </div>
+
+        <div class="form-group">
+            <label>
+                <span class="label-text">每日邮件上限</span>
+                <span class="required">*</span>
+            </label>
+            <input type="number" id="daily_limit" name="daily_limit" 
+                   value="{{ config.daily_limit if config else 10 }}"
+                   min="0" max="999" required>
+            <div class="field-hint">管理员下的单个用户每日最高请求邮件次数(最高999),设置为0代表无限制(不影响官邮5次上限)</div>
+        </div>
+
+        <button type="submit">保存配置</button>
+    </form>
+</div>
+{% endblock %} 

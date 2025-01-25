@@ -1,0 +1,234 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="upload-form">
+    <h1>文件解码</h1>
+    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+        <div class="form-group">
+            <label>
+                <span class="label-text">选择Lua文件</span>
+                <span class="required">*</span>
+            </label>
+            <div class="file-drop-area" id="dropArea">
+                <input type="file" name="file" accept=".lua,.alp" required id="fileInput">
+                <div class="drop-message">
+                    <span class="icon">📁</span>
+                    <p>拖放文件到这里或点击选择文件</p>
+                    <p class="sub-text">支持 .lua 和 .alp 文件</p>
+                </div>
+            </div>
+            <div class="field-hint">请选择需要解码的Lua文件</div>
+        </div>
+        
+        <div class="form-group">
+            <label>
+                <span class="label-text">解密方式</span>
+                <span class="required">*</span>
+            </label>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="decode_method" value="vm_decrypt" checked>
+                    VM解密 (Vm_REN加固 .alp文件)
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="decode_method" value="all">
+                    尝试所有解密方式 (.lua文件)
+                </label>
+            </div>
+        </div>
+        
+        <div class="form-group decode-order" style="display: none;">
+            <label>
+                <span class="label-text">解密顺序</span>
+                <span class="required">*</span>
+            </label>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="decode_order" value="binary_first" checked>
+                    先二进制解密，再进行其他解密
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="decode_order" value="binary_last">
+                    先进行其他解密，再进行二进制解密
+                </label>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button type="submit">开始解码</button>
+            <button type="button" class="clear-btn" id="clearBtn">清除所有文件</button>
+        </div>
+    </form>
+    
+    <div class="decoded-files">
+        <h2>已解码文件</h2>
+        <div class="file-list">
+            {% if decoded_files %}
+                {% for file in decoded_files %}
+                <div class="file-item">
+                    <span class="file-name">{{ file }}</span>
+                    <div class="file-actions">
+                        <span class="decode-method">
+                            {% if 'vm_decrypt' in file %}VM解密
+                            {% elif 'binary_first' in file %}先二进制后解密
+                            {% elif 'binary_last' in file %}先解密后二进制
+                            {% elif 'binary' in file %}仅二进制解密
+                            {% elif 'bacon' in file %}培根密码
+                            {% elif 'rail_fence' in file %}栅栏密码
+                            {% elif 'route' in file %}曲路密码
+                            {% elif 'columnar' in file %}列移位密码
+                            {% elif '01248' in file %}01248密码
+                            {% endif %}
+                        </span>
+                        <a href="{{ url_for('download_file', filename=file) }}" class="download-btn">下载</a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-files">暂无已解码文件</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 解密方式切换逻辑
+    const decodeMethodInputs = document.querySelectorAll('input[name="decode_method"]');
+    const decodeOrderDiv = document.querySelector('.decode-order');
+    
+    function toggleDecodeOrder() {
+        const selectedMethod = document.querySelector('input[name="decode_method"]:checked').value;
+        decodeOrderDiv.style.display = selectedMethod === 'all' ? 'block' : 'none';
+    }
+    
+    decodeMethodInputs.forEach(input => {
+        input.addEventListener('change', toggleDecodeOrder);
+    });
+    
+    // 拖放上传逻辑
+    const dropArea = document.getElementById('dropArea');
+    const fileInput = document.getElementById('fileInput');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight(e) {
+        dropArea.classList.add('highlight');
+    }
+    
+    function unhighlight(e) {
+        dropArea.classList.remove('highlight');
+    }
+    
+    dropArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+            fileInput.files = files;
+            updateFileName(files[0].name);
+        }
+    }
+    
+    function validateFileType(file) {
+        const method = document.querySelector('input[name="decode_method"]:checked').value;
+        const ext = file.name.split('.').pop().toLowerCase();
+        
+        if (method === 'vm_decrypt' && ext !== 'alp') {
+            alert('VM解密方式只支持 .alp 文件');
+            return false;
+        } else if (method === 'all' && ext !== 'lua') {
+            alert('通用解密方式只支持 .lua 文件');
+            return false;
+        }
+        return true;
+    }
+    
+    fileInput.addEventListener('change', function(e) {
+        if (this.files.length > 0) {
+            if (validateFileType(this.files[0])) {
+                updateFileName(this.files[0].name);
+            } else {
+                this.value = '';  // 清除选择的文件
+                const dropMessage = dropArea.querySelector('.drop-message');
+                dropMessage.innerHTML = `
+                    <span class="icon">📁</span>
+                    <p>拖放文件到这里或点击选择文件</p>
+                    <p class="sub-text">支持 .lua 和 .alp 文件</p>
+                `;
+            }
+        }
+    });
+    
+    dropArea.addEventListener('drop', function(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+            if (validateFileType(files[0])) {
+                fileInput.files = files;
+                updateFileName(files[0].name);
+            }
+        }
+    });
+    
+    // 添加解密方式切换时的文件清除
+    decodeMethodInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            fileInput.value = '';  // 清除已选择的文件
+            const dropMessage = dropArea.querySelector('.drop-message');
+            dropMessage.innerHTML = `
+                <span class="icon">📁</span>
+                <p>拖放文件到这里或点击选择文件</p>
+                <p class="sub-text">支持 .lua 和 .alp 文件</p>
+            `;
+            toggleDecodeOrder();
+        });
+    });
+    
+    // 清除文件功能
+    const clearBtn = document.getElementById('clearBtn');
+    clearBtn.addEventListener('click', function() {
+        if (confirm('确定要清除所有文件吗？')) {
+            fetch('/clear-files', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('清除文件失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('清除文件失败');
+            });
+        }
+    });
+    
+    // 初始化显示状态
+    toggleDecodeOrder();
+});
+</script>
+{% endblock %} 

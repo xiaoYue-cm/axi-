@@ -1,0 +1,9 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <div class="error-page">
+        <h1>服务器错误 (500)</h1>
+        <p>抱歉，服务器出现了问题。</p>
+        <a href="{{ url_for('home') }}">返回首页</a>
+    </div>
+{% endblock %} 
